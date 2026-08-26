@@ -1,5 +1,5 @@
 import feedparser
-from config import FEED_URLS
+from src.config import FEED_URLS
 
 def get_top_story() -> dict:
     feed = feedparser.parse(FEED_URLS["Il_Fatto_Quotidiano"])
