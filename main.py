@@ -1,47 +1,89 @@
 """
-Entry point del progetto.
-Eseguito ogni mattina da GitHub Actions (vedi workflows/daily_news.yml).
+Costruzione e invio dell'email giornaliera con le notizie raccolte.
 
-Flusso:
-1. Richiama tutti gli scraper tramite src.utils.scraper
-2. Costruisce l'HTML dell'email
-3. Invia l'email
-4. Logga ogni fase ed eventuali errori
+Le credenziali NON vanno mai scritte nel codice: si leggono da variabili
+d'ambiente, che in GitHub Actions arrivano dai "Repository Secrets".
 """
 
-import sys
+import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from datetime import date
 
 from logger import get_logger
-from mail import build_email_html, send_email
-from src.scraper import get_all_articles
 
 logger = get_logger(__name__)
 
 
-def main() -> int:
-    logger.info("Avvio raccolta notizie...")
+def build_email_html(news_items: list[dict]) -> str:
+    """
+    news_items: lista di dict con almeno le chiavi:
+        fonte, titolo, link, sommario (sommario opzionale)
+    """
+    today = date.today().strftime("%d/%m/%Y")
 
-    try:
-        news_items = get_all_articles()
-    except Exception:
-        logger.exception("Errore durante l'esecuzione degli scraper")
-        return 1
+    # Raggruppa le notizie per fonte
+    grouped: dict[str, list[dict]] = {}
+    for item in news_items:
+        grouped.setdefault(item.get("fonte", "Sconosciuta"), []).append(item)
 
-    if not news_items:
-        logger.warning("Nessuna notizia raccolta: invio comunque un'email vuota di avviso.")
+    sections = []
+    for fonte, items in grouped.items():
+        rows = "".join(
+            f"""
+            <li style="margin-bottom:10px;">
+                <a href="{item.get('link', '#')}" style="font-weight:bold; text-decoration:none; color:#1a0dab;">
+                    {item['titolo']}
+                </a>
+                {f"<div style='color:#555; font-size:14px;'>{item['sommario']}</div>" if item.get('sommario') else ""}
+            </li>
+            """
+            for item in items
+        )
+        sections.append(f"""
+            <h2 style="border-bottom:2px solid #333; padding-bottom:4px;">{fonte}</h2>
+            <ul style="list-style:none; padding-left:0;">{rows}</ul>
+        """)
 
-    logger.info(f"Raccolte {len(news_items)} notizie totali.")
+    html = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; max-width:700px; margin:auto;">
+        <h1>📰 Rassegna stampa del {today}</h1>
+        {''.join(sections)}
+        <hr>
+        <p style="color:#999; font-size:12px;">
+            Email generata automaticamente da GitHub Actions.
+        </p>
+      </body>
+    </html>
+    """
+    return html
 
-    try:
-        html = build_email_html(news_items)
-        send_email(html)
-    except Exception:
-        logger.exception("Errore durante l'invio dell'email")
-        return 1
 
-    logger.info("Esecuzione completata con successo.")
-    return 0
+def send_email(html_content: str, subject: str | None = None) -> None:
+    smtp_server = os.environ["SMTP_SERVER"]          # es. smtp.gmail.com
+    smtp_port = int(os.environ.get("SMTP_PORT", 587))
+    sender = os.environ["EMAIL_SENDER"]
+    password = os.environ["EMAIL_PASSWORD"]           # per Gmail: App Password
 
+    # Supporta uno o più destinatari separati da virgola, es:
+    # EMAIL_RECIPIENT = "a@email.com,b@email.com,c@email.com"
+    recipients = [r.strip() for r in os.environ["EMAIL_RECIPIENT"].split(",") if r.strip()]
 
-if __name__ == "__main__":
-    sys.exit(main())
+    subject = subject or f"Rassegna stampa - {date.today().strftime('%d/%m/%Y')}"
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = ", ".join(recipients)  # solo per l'intestazione visibile nell'email
+    msg.attach(MIMEText(html_content, "html"))
+
+    logger.info(f"Connessione a {smtp_server}:{smtp_port} per invio email a {len(recipients)} destinatari")
+
+    with smtplib.SMTP(smtp_server, smtp_port) as server:
+        server.starttls()
+        server.login(sender, password)
+        server.sendmail(sender, recipients, msg.as_string())  # lista, non stringa singola
+
+    logger.info("Email inviata con successo.")
