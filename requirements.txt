@@ -1,4 +1,2 @@
-sys
-pathlib
 feedparser
 dotenv
