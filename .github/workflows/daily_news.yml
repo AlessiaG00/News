@@ -2,8 +2,11 @@ name: Daily News Scraper
 
 on:
   schedule:
+    # Attenzione: l'orario è in UTC, non in ora italiana!
+    # Esempio: per le 07:00 ora italiana (CET, UTC+1) usa "0 6 * * *"
+    # In estate (CEST, UTC+2) diventerebbe "0 5 * * *"
     - cron: "0 6 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch: {}   # permette di far partire il workflow manualmente da GitHub
 
 permissions:
   contents: read
@@ -29,12 +32,13 @@ jobs:
 
       - name: Run daily news scraper and send email
         env:
+          PYTHONUNBUFFERED: "1"
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
-        run: python main.py
+        run: python -u main.py
 
       - name: Upload logs as artifact
         if: always()
