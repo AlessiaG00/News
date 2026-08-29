@@ -62,25 +62,27 @@ def build_email_html(news_items: list[dict]) -> str:
 
 
 def send_email(html_content: str, subject: str | None = None) -> None:
-    smtp_server = os.environ["SMTP_SERVER"]          # es. smtp.gmail.com
+    smtp_server = os.environ["SMTP_SERVER"]          
     smtp_port = int(os.environ.get("SMTP_PORT", 587))
     sender = os.environ["EMAIL_SENDER"]
-    password = os.environ["EMAIL_PASSWORD"]           # per Gmail: App Password
-    recipient = os.environ["EMAIL_RECIPIENT"]
+    password = os.environ["EMAIL_PASSWORD"]           
+
+    # Supporta uno o più destinatari separati da virgola
+    recipients = [r.strip() for r in os.environ["EMAIL_RECIPIENT"].split(",") if r.strip()]
 
     subject = subject or f"Rassegna stampa - {date.today().strftime('%d/%m/%Y')}"
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = sender
-    msg["To"] = recipient
+    msg["To"] = ", ".join(recipients) 
     msg.attach(MIMEText(html_content, "html"))
 
-    logger.info(f"Connessione a {smtp_server}:{smtp_port} per invio email a {recipient}")
+    logger.info(f"Connessione a {smtp_server}:{smtp_port} per invio email a {len(recipients)} destinatari")
 
     with smtplib.SMTP(smtp_server, smtp_port) as server:
         server.starttls()
         server.login(sender, password)
-        server.sendmail(sender, recipient, msg.as_string())
+        server.sendmail(sender, recipients, msg.as_string())  # lista, non stringa singola
 
     logger.info("Email inviata con successo.")
