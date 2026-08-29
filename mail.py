@@ -10,33 +10,36 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import date
-
+ 
 from logger import get_logger
-
+ 
 logger = get_logger(__name__)
-
-
+ 
+ 
 def build_email_html(news_items: list[dict]) -> str:
     """
-    news_items: lista di dict con almeno le chiavi:
-        fonte, titolo, link, sommario (sommario opzionale)
+    news_items: lista di dict con le chiavi:
+        fonte, titolo, link, sommario, autore, pubblicato
+    (tutte tranne fonte/titolo sono opzionali: se mancano, quella riga
+    non viene mostrata)
     """
     today = date.today().strftime("%d/%m/%Y")
-
+ 
     # Raggruppa le notizie per fonte
     grouped: dict[str, list[dict]] = {}
     for item in news_items:
         grouped.setdefault(item.get("fonte", "Sconosciuta"), []).append(item)
-
+ 
     sections = []
     for fonte, items in grouped.items():
         rows = "".join(
             f"""
-            <li style="margin-bottom:10px;">
+            <li style="margin-bottom:14px;">
                 <a href="{item.get('link', '#')}" style="font-weight:bold; text-decoration:none; color:#1a0dab;">
                     {item['titolo']}
                 </a>
-                {f"<div style='color:#555; font-size:14px;'>{item['sommario']}</div>" if item.get('sommario') else ""}
+                {f"<div style='color:#555; font-size:14px; margin-top:4px;'>{item['summary']}</div>" if item.get('sommario') else ""}
+                {f"<div style='color:#888; font-size:12px; margin-top:4px;'>{item['autore']}{' &middot; ' + item['pubblicato'] if item.get('pubblicato') else ''}</div>" if item.get('autore') else (f"<div style='color:#888; font-size:12px; margin-top:4px;'>{item['pubblicato']}</div>" if item.get('pubblicato') else "")}
             </li>
             """
             for item in items
@@ -45,7 +48,7 @@ def build_email_html(news_items: list[dict]) -> str:
             <h2 style="border-bottom:2px solid #333; padding-bottom:4px;">{fonte}</h2>
             <ul style="list-style:none; padding-left:0;">{rows}</ul>
         """)
-
+ 
     html = f"""
     <html>
       <body style="font-family: Arial, sans-serif; max-width:700px; margin:auto;">
