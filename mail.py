@@ -52,7 +52,7 @@ def build_email_html(news_items: list[dict]) -> str:
     html = f"""
     <html>
       <body style="font-family: Arial, sans-serif; max-width:700px; margin:auto;">
-        <h1>📰 Rassegna stampa del {today}</h1>
+        <h1>📰 Rassegna stampa Tech del {today}</h1>
         {''.join(sections)}
         <hr>
         <p style="color:#999; font-size:12px;">

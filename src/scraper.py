@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 SCRAPERS = {
     "ANSA": ansa.get_top_story,
     "Corriere": corriere.get_top_story,
-    "Il Fatto Quotidiano": ilfattoquotidiano.get_top_story,  
     "Repubblica": repubblica.get_top_story,
     "Sole24Ore": sole24ore.get_top_story,
 }
