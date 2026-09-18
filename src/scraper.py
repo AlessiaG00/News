@@ -1,5 +1,5 @@
 import logging
-from src.scrapers import ansa, corriere, repubblica, sole24ore, ilfattoquotidiano
+from src.scrapers import ansa, corriere, repubblica, sole24ore
 
 logger = logging.getLogger(__name__)
 
