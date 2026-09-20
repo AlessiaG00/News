@@ -9,7 +9,8 @@ def get_top_story() -> dict:
         "fonte": "Corriere Della Sera",
         "titolo": entry.get("title"),
         "link": entry.get("links", [{}])[0].get("href"),
-        "summary": entry.get("summary"),
+        "summary": (entry.get("summary") or entry.get("description") or "").strip(),
         "autore": entry.get("authors", [{}])[0].get("name"),
         "pubblicato": entry.get("published"),
+        "link": entry.get("link", "").strip()
     }

@@ -1,10 +1,3 @@
-"""
-Costruzione e invio dell'email giornaliera con le notizie raccolte.
-
-Le credenziali NON vanno mai scritte nel codice: si leggono da variabili
-d'ambiente, che in GitHub Actions arrivano dai "Repository Secrets".
-"""
-
 import os
 import smtplib
 from email.mime.multipart import MIMEMultipart

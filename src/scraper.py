@@ -1,5 +1,5 @@
 import logging
-from src.scrapers import ansa, corriere, repubblica, sole24ore
+from src.scrapers import ansa, corriere, repubblica, sole24ore, bbc, guardian, NYT
 
 logger = logging.getLogger(__name__)
 
@@ -10,6 +10,9 @@ SCRAPERS = {
     "Corriere": corriere.get_top_story,
     "Repubblica": repubblica.get_top_story,
     "Sole24Ore": sole24ore.get_top_story,
+    "BBC": bbc.get_top_story,
+    "The Guardian": guardian.get_top_story,
+    "NYT": NYT.get_top_story
 }
 
 

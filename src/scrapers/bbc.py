@@ -2,11 +2,11 @@ import feedparser
 from src.config import FEED_URLS
 
 def get_top_story() -> dict:
-    feed = feedparser.parse(FEED_URLS["Repubblica"])
+    feed = feedparser.parse(FEED_URLS["BBC"])
     entry = feed.entries[0]
 
     return {
-        "fonte": "Repubblica",
+        "fonte": "BBC News",
         "titolo": entry.get("title"),
         "link": entry.get("links", [{}])[0].get("href"),
         "summary": (entry.get("summary") or entry.get("description") or "").strip(),
