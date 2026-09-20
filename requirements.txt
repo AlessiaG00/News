@@ -1,2 +1,4 @@
 feedparser
 dotenv
+requests
+beautifulsoup4
