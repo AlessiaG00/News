@@ -1,0 +1,12 @@
+2026-09-20 12:16:03 | INFO     | __main__ | Avvio raccolta notizie...
+2026-09-20 12:16:04 | INFO     | __main__ | Raccolte 6 notizie totali.
+2026-09-20 12:16:04 | ERROR    | __main__ | Errore durante l'invio dell'email
+Traceback (most recent call last):
+  File "c:\Users\acer\Desktop\News\code\News\main.py", line 37, in main
+    send_email(html)
+    ~~~~~~~~~~^^^^^^
+  File "c:\Users\acer\Desktop\News\code\News\mail.py", line 61, in send_email
+    smtp_server = os.environ["SMTP_SERVER"]
+                  ~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "<frozen os>", line 717, in __getitem__
+KeyError: 'SMTP_SERVER'

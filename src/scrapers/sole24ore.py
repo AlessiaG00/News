@@ -2,7 +2,7 @@ import feedparser
 from src.config import FEED_URLS
 
 def get_top_story() -> dict:
-    feed = feedparser.parse(FEED_URLS["Sole24ore"])
+    feed = feedparser.parse(FEED_URLS["Sole24Ore"])
     entry = feed.entries[0]
 
     return {

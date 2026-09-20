@@ -1,14 +1,3 @@
-"""
-Entry point del progetto.
-Eseguito ogni mattina da GitHub Actions (vedi workflows/daily_news.yml).
-
-Flusso:
-1. Richiama tutti gli scraper tramite src.utils.scraper
-2. Costruisce l'HTML dell'email
-3. Invia l'email
-4. Logga ogni fase ed eventuali errori
-"""
-
 import sys
 
 from logger import get_logger

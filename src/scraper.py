@@ -1,18 +1,21 @@
 import logging
-from src.scrapers import ansa, corriere, repubblica, sole24ore, bbc, guardian, NYT
+from src.scrapers import ansa, bbc, corriere, guardian, NYT, openai, repubblica, sole24ore, anthropic, google_deepmind, google_research, deepseek
 
 logger = logging.getLogger(__name__)
 
-# Mappa nome -> funzione, così aggiungere un giornale in futuro
-# significa aggiungere una riga qui, non toccare la logica sotto
 SCRAPERS = {
     "ANSA": ansa.get_top_story,
     "Corriere": corriere.get_top_story,
     "Repubblica": repubblica.get_top_story,
     "Sole24Ore": sole24ore.get_top_story,
-    "BBC": bbc.get_top_story,
+    "BBC News": bbc.get_top_story,
     "The Guardian": guardian.get_top_story,
-    "NYT": NYT.get_top_story
+    "NYT": NYT.get_top_story,
+    "OpenAI": openai.get_openai_latest,
+    "Anthropic": anthropic.get_anthropic_latest,
+    "Google Research": google_research.get_research_latest,
+    "Google DeepMind": google_deepmind.get_deepmind_latest,
+    "DeepSeek": deepseek.get_deepseek_latest,
 }
 
 

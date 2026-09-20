@@ -1,12 +1,3 @@
-"""
-Configurazione centralizzata del logging per tutto il progetto.
-
-Uso in qualsiasi altro modulo:
-    from logger import get_logger
-    logger = get_logger(__name__)
-    logger.info("messaggio")
-"""
-
 import logging
 import sys
 from pathlib import Path
