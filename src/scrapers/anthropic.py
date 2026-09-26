@@ -1,4 +1,3 @@
-
 import re
 from datetime import datetime
 from urllib.parse import urljoin
@@ -8,10 +7,10 @@ from bs4 import BeautifulSoup
 
 from logger import get_logger
 from src.config import (
-    ANTHROPIC_ARTICLE_PATTERN,
     ANTHROPIC_CATEGORY_FILTER,
     ANTHROPIC_DATE_PATTERN,
-    ANTHROPIC_KNOWN_CATEGORIES,
+    ANTHROPIC_GENERIC_DESC,
+    ANTHROPIC_SITE,
     ANTHROPIC_URL,
     HEADERS,
     MESI_EN,
@@ -21,138 +20,104 @@ from src.config import (
 logger = get_logger(__name__)
 
 DATE_PATTERN = re.compile(ANTHROPIC_DATE_PATTERN)
-ARTICLE_PATTERN = re.compile(ANTHROPIC_ARTICLE_PATTERN)
 
 
 # ------------------------------------------------------------
 # UTILITÀ
 # ------------------------------------------------------------
 
-def clean_text(text):
-    if not text:
-        return ""
-    soup = BeautifulSoup(text, "html.parser")
-    return re.sub(r"\s+", " ", soup.get_text(" ", strip=True)).strip()
+def _clean(text):
+    return re.sub(r"\s+", " ", text or "").strip()
 
 
-def _parse_data_en(data_str):
-    """'Sep 1, 2026' -> datetime (indipendente dal locale del sistema)."""
+def _get_soup(url):
+    response = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
+    response.raise_for_status()
+    return BeautifulSoup(response.text, "html.parser")
+
+
+def _meta(soup, *names):
+    """Legge il primo meta tag trovato tra property e name."""
+    for nome in names:
+        tag = soup.find("meta", attrs={"property": nome}) or soup.find(
+            "meta", attrs={"name": nome}
+        )
+        if tag and tag.get("content"):
+            return _clean(tag["content"])
+    return ""
+
+
+def _parse_data_en(mese, giorno, anno):
+    """'Sep', '22', '2026' -> datetime (indipendente dal locale del sistema)."""
     try:
-        mese, giorno, anno = data_str.replace(",", "").split()
         return datetime(int(anno), MESI_EN[mese.lower()[:3]], int(giorno))
     except (ValueError, KeyError):
         return None
-
-
-def _parse_voce_lista(raw_text):
-    """
-    Divide il testo di un link della lista "News" in (data, categoria, titolo).
-    Esempi di testo grezzo:
-      "Sep 1, 2026Announcements Developing Enterprise Frontier Safeguards..."
-      "Aug 31, 2026 Improving our alignment and security efforts"  (senza categoria)
-    """
-
-    match = DATE_PATTERN.match(raw_text)
-    if not match:
-        return None
-
-    data_str = match.group(0)
-    resto = raw_text[len(data_str):].strip()
-
-    categoria = None
-    for cat in ANTHROPIC_KNOWN_CATEGORIES:
-        if resto == cat or resto.startswith(cat + " "):
-            categoria = cat
-            resto = resto[len(cat):].strip()
-            break
-
-    return {
-        "data_str": data_str,
-        "data": _parse_data_en(data_str),
-        "categoria": categoria,
-        "titolo": resto.strip(),
-    }
 
 
 # ------------------------------------------------------------
 # LISTA ARTICOLI
 # ------------------------------------------------------------
 
-def _lista_articoli():
+def _trova_voci(soup, category_filter=None):
     """
-    Legge la pagina News. Restituisce (tutti, candidati):
-    tutti = ogni articolo trovato; candidati = solo quelli che passano
-    il filtro per categoria. Entrambe senza duplicati.
+    Restituisce {url: {data, data_str, testo}} per ogni link della pagina il
+    cui testo contiene una data. Copre sia la lista "News" (/news/slug) sia
+    le card in evidenza in cima (URL diversi, es. /features/...): in queste
+    ultime categoria e data sono spesso attaccate al testo del link
     """
 
-    response = requests.get(ANTHROPIC_URL, headers=HEADERS, timeout=REQUEST_TIMEOUT)
-    response.raise_for_status()
-
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    tutti = []
-    candidati = []
-    visti = set()
+    voci = {}
 
     for link in soup.find_all("a", href=True):
+        url = urljoin(ANTHROPIC_URL, link["href"].strip())
+        url = url.split("?")[0].split("#")[0].rstrip("/")
 
-        full_url = urljoin(ANTHROPIC_URL, link["href"].strip())
-        full_url = full_url.split("?")[0].split("#")[0]
-
-        if not ARTICLE_PATTERN.match(full_url) or full_url in visti:
+        if not url.startswith(ANTHROPIC_SITE) or url == ANTHROPIC_URL:
             continue
 
-        voce = _parse_voce_lista(clean_text(link.get_text(" ", strip=True)))
-
-        if not voce or not voce["titolo"]:
+        testo = _clean(link.get_text(" ", strip=True))
+        match = DATE_PATTERN.search(testo)
+        if not match:
             continue
 
-        visti.add(full_url)
-        voce["link"] = full_url
-        tutti.append(voce)
-
-        if ANTHROPIC_CATEGORY_FILTER and voce["categoria"] != ANTHROPIC_CATEGORY_FILTER:
+        if category_filter and category_filter.lower() not in testo.lower():
             continue
 
-        candidati.append(voce)
+        if url not in voci:
+            voci[url] = {
+                "data": _parse_data_en(match.group(1), match.group(2), match.group(3)),
+                "data_str": match.group(0),
+                "testo": testo,
+            }
 
-    return tutti, candidati
+    return voci
 
 
 # ------------------------------------------------------------
 # ARTICOLO
 # ------------------------------------------------------------
 
-def _leggi_articolo(voce):
+def _leggi_articolo(soup):
     """
-    Apre l'articolo per il titolo pulito (og:title) e il sommario.
-    Il meta description di Anthropic è generico per tutto il sito, quindi
-    il sommario è il primo paragrafo vero dopo l'<h1>.
-    Se la pagina non si apre, ripiega sui dati della lista.
+    Estrae titolo e sommario dall'articolo.
+    La meta description di Anthropic è generica per tutto il sito, quindi
+    va scartata e sostituita dal primo paragrafo vero dopo l'<h1>.
     """
-
-    titolo = voce["titolo"]
-    sommario = ""
-
-    try:
-        response = requests.get(voce["link"], headers=HEADERS, timeout=REQUEST_TIMEOUT)
-        response.raise_for_status()
-    except requests.RequestException as e:
-        logger.warning(f"Anthropic: impossibile aprire {voce['link']} - {e}")
-        return titolo, sommario
-
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    og_title = soup.find("meta", attrs={"property": "og:title"})
-    if og_title and og_title.get("content"):
-        titolo = og_title["content"].strip()
 
     h1 = soup.find("h1")
-    if h1:
+    titolo = _clean(h1.get_text(" ", strip=True)) if h1 else ""
+    titolo = titolo or _meta(soup, "og:title")
+
+    sommario = _meta(soup, "og:description", "description")
+    if ANTHROPIC_GENERIC_DESC in sommario:
+        sommario = ""
+
+    if not sommario and h1:
         for p in h1.find_all_next("p"):
-            testo = clean_text(p.get_text(" ", strip=True))
+            testo = _clean(p.get_text(" ", strip=True))
             if len(testo) > 40:
-                sommario = testo
+                sommario = testo[:300]
                 break
 
     return titolo, sommario
@@ -162,48 +127,45 @@ def _leggi_articolo(voce):
 # FUNZIONE PUBBLICA
 # ------------------------------------------------------------
 
-def get_anthropic_latest():
+def get_anthropic_latest(category_filter=ANTHROPIC_CATEGORY_FILTER):
     """Restituisce l'articolo più recente della pagina News di Anthropic."""
 
-    tutti, candidati = _lista_articoli()
+    voci = _trova_voci(_get_soup(ANTHROPIC_URL), category_filter)
 
-    if not candidati:
-        if not tutti:
-            logger.warning(
-                "Anthropic: nessun link corrisponde al pattern degli articoli "
-                "(probabile HTML diverso da quello del browser: anti-bot o "
-                "rendering lato client)"
-            )
-        else:
-            dettaglio = "; ".join(
-                f"{v['categoria']!r}: {v['titolo']} ({v['data_str']})"
-                for v in tutti[:10]
-            )
-            logger.warning(
-                f"Anthropic: nessun articolo nella categoria "
-                f"'{ANTHROPIC_CATEGORY_FILTER}'. Trovati {len(tutti)} articoli "
-                f"in altre categorie: {dettaglio}"
-            )
+    if not voci:
+        logger.warning(
+            "Anthropic: nessun link con data trovato (probabile HTML diverso "
+            "da quello del browser: anti-bot o rendering lato client)"
+        )
         return None
 
-    # Il più recente per data reale (a parità, vale l'ordine della pagina)
-    candidati.sort(key=lambda v: v["data"] or datetime.min, reverse=True)
-    ultimo = candidati[0]
+    # Il più recente per data reale; a parità vince il primo in ordine di pagina
+    link, info = max(voci.items(), key=lambda kv: kv[1]["data"] or datetime.min)
 
-    titolo, sommario = _leggi_articolo(ultimo)
+    try:
+        soup_articolo = _get_soup(link)
+    except requests.RequestException as e:
+        logger.warning(f"Anthropic: impossibile aprire {link} - {e}")
+        return {
+            "titolo": info["testo"],
+            "sommario": "",
+            "pubblicato": info["data_str"],
+            "link": link,
+        }
+
+    titolo, sommario = _leggi_articolo(soup_articolo)
 
     return {
-        "titolo": titolo,
+        "titolo": titolo or info["testo"],
         "sommario": sommario,
         "pubblicato": (
-            ultimo["data"].strftime("%d/%m/%Y") if ultimo["data"] else ultimo["data_str"]
+            info["data"].strftime("%d/%m/%Y") if info["data"] else info["data_str"]
         ),
-        "link": ultimo["link"],
+        "link": link,
     }
 
 
 if __name__ == "__main__":
-    # Esegui dalla root della repo:  python -m src.scrapers.anthropic_news
     articolo = get_anthropic_latest()
 
     if articolo:

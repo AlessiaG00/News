@@ -11,7 +11,6 @@ def get_logger(name: str = "daily_news") -> logging.Logger:
 
     logger = logging.getLogger(name)
 
-    # Evita di aggiungere handler duplicati se get_logger viene chiamato più volte
     if logger.handlers:
         return logger
 
@@ -22,13 +21,10 @@ def get_logger(name: str = "daily_news") -> logging.Logger:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # Output su console (utile nei log di GitHub Actions)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 
-    # Output su file (utile in locale; in Actions il filesystem è effimero
-    # ma non fa male scriverlo comunque, puoi anche caricarlo come artifact)
     file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)

@@ -99,7 +99,6 @@ def get_deepmind_latest():
 
 
 if __name__ == "__main__":
-    # Esegui dalla root della repo:  python -m src.scrapers.google_deepmind
     articolo = get_deepmind_latest()
 
     if articolo:

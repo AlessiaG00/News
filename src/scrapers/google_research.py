@@ -123,7 +123,6 @@ def get_research_latest():
 
 
 if __name__ == "__main__":
-    # Esegui dalla root della repo:  python -m src.scrapers.google_research
     articolo = get_research_latest()
 
     if articolo:

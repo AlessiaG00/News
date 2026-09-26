@@ -140,7 +140,6 @@ def get_deepseek_latest():
 
 
 if __name__ == "__main__":
-    # Esegui dalla root della repo:  python -m src.scrapers.deepseek_news
     articolo = get_deepseek_latest()
 
     if articolo:

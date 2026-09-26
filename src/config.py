@@ -47,30 +47,13 @@ MESI_IT = {
 
 ### ANTHROPIC
 
-# ============================================================
-# ANTHROPIC — da incollare in src/config.py
-# (HEADERS e REQUEST_TIMEOUT sono già stati aggiunti con OpenAI)
-# ============================================================
-
 ANTHROPIC_URL = "https://www.anthropic.com/news"
-ANTHROPIC_CATEGORY_FILTER = "Announcements"
-
-ANTHROPIC_KNOWN_CATEGORIES = [
-    "Announcements",
-    "Societal Impacts",
-    "Policy",
-    "Product",
-    "Features",
-    "Alignment",
-    "Research",
-    "Commitments",
-]
-
+ANTHROPIC_SITE = "https://www.anthropic.com/"
+ANTHROPIC_CATEGORY_FILTER = None  
 ANTHROPIC_DATE_PATTERN = (
-    r"^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4}"
+    r"(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2}),\s+(\d{4})"
 )
-
-ANTHROPIC_ARTICLE_PATTERN = r"^https://www\.anthropic\.com/news/[^/?#]+/?$"
+ANTHROPIC_GENERIC_DESC = "AI safety and research company"
 
 MESI_EN = {
     "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,

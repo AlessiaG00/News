@@ -224,7 +224,6 @@ def get_openai_latest():
 
 
 if __name__ == "__main__":
-    # Esegui dalla root della repo:  python -m src.scrapers.openai_news
     articolo = get_openai_latest()
 
     if articolo:
