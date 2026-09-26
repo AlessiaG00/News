@@ -1,5 +1,5 @@
 import logging
-from src.scrapers import bbc, corriere, guardian, NYT, openai, repubblica, sole24ore, anthropic, google_deepmind, google_research, deepseek
+from src.scrapers import bbc, corriere, guardian, NYT, il_post, openai, repubblica, sole24ore, anthropic, google_deepmind, google_research, deepseek
 
 logger = logging.getLogger(__name__)
 
@@ -7,6 +7,7 @@ SCRAPERS = {
     "Corriere": corriere.get_top_story,
     "Repubblica": repubblica.get_top_story,
     "Sole24Ore": sole24ore.get_top_story,
+    "Il Post": il_post.get_top_story,
     "BBC News": bbc.get_top_story,
     "The Guardian": guardian.get_top_story,
     "NYT": NYT.get_top_story,

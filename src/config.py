@@ -17,6 +17,9 @@ FEED_URLS = {
 CORRIERE_SECTION_URL = "https://www.corriere.it/tecnologia/"
 CORRIERE_FIRST_LINK_SELECTOR = "article a[href], h2 a[href], h3 a[href]"
 
+IL_POST_SECTION_URL = "https://www.ilpost.it/tag/intelligenza-artificiale/"
+IL_POST_FIRST_LINK_SELECTOR = "article a[href], h2 a[href], h3 a[href]"
+
 
 # --- AI Blog ---
 
@@ -99,7 +102,7 @@ EMAIL_SEZIONI = [
     {
         "titolo": "📰 Italia",
         "colore": "#1a56a0",
-        "fonti": ["ANSA", "Corriere", "Repubblica", "Sole24Ore"],
+        "fonti": ["Corriere", "Repubblica", "Sole24Ore", "Il Post"],
     },
     {
         "titolo": "🌍 World",
