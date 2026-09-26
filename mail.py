@@ -6,7 +6,7 @@ from datetime import date
 from html import escape
 
 from logger import get_logger
-from src.config import EMAIL_SEZIONE_RESTANTI, EMAIL_SEZIONI
+from src.config import EMAIL_SEZIONE_RESTANTI, EMAIL_SEZIONI, EMAIL_SOMMARIO_MAX_CARATTERI
 
 logger = get_logger(__name__)
 
@@ -20,7 +20,9 @@ def _render_item(item: dict, colore: str) -> str:
     fonte = escape(str(item.get("fonte") or "Sconosciuta"))
     titolo = escape(str(item.get("titolo") or "(senza titolo)"))
     link = str(item.get("link") or "").strip()
-    sommario = item.get("sommario")
+    sommario = item.get("sommario") or item.get("summary")
+    if sommario and len(str(sommario)) > EMAIL_SOMMARIO_MAX_CARATTERI:
+      sommario = None
     autore = item.get("autore")
     pubblicato = item.get("pubblicato")
 

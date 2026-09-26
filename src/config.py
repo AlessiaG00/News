@@ -7,14 +7,15 @@ load_dotenv()
 
 # Giornali di input
 FEED_URLS = {
-    "ANSA": "https://www.ansa.it/sito/notizie/tecnologia/tecnologia_rss.xml",
-    "Corriere": "https://xml2.corriereobjects.it/rss/tecnologia.xml",
     "Repubblica": "https://www.repubblica.it/rss/tecnologia/rss2.0.xml",
     "Sole24Ore": "https://www.ilsole24ore.com/rss/tecnologia.xml",
     "BBC": "https://feeds.bbci.co.uk/news/technology/rss.xml",
     "Guardian": "https://www.theguardian.com/technology/rss",
     "NYT": "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml"
 }
+
+CORRIERE_SECTION_URL = "https://www.corriere.it/tecnologia/"
+CORRIERE_FIRST_LINK_SELECTOR = "article a[href], h2 a[href], h3 a[href]"
 
 
 # --- AI Blog ---
@@ -92,6 +93,8 @@ DEEPSEEK_DATE_SUFFIX_PATTERN = r"\s+(\d{4})/(\d{2})/(\d{2})\s*$"
 
 
 ### EMAIL 
+EMAIL_SOMMARIO_MAX_CARATTERI = 200
+
 EMAIL_SEZIONI = [
     {
         "titolo": "📰 Italia",

@@ -2,7 +2,7 @@
 
 This project aims to create a daily newsletter covering news related to the Tech and AI world.
 
-More specifically, the latest news article from the tech section of the following newspapers/news outlets is selected: ANSA, La Repubblica, Corriere della Sera, Il Sole 24 Ore, BBC News, The Guardian, and The New York Times. 
+More specifically, the latest news article from the tech section of the following newspapers/news outlets is selected: La Repubblica, Corriere della Sera, Il Sole 24 Ore, BBC News, The Guardian, and The New York Times. 
 
 To complement the newsletter, a dedicated section is included featuring the latest announcements from some of the leading AI companies, such as OpenAI, Anthropic, Google and DeepSeek.
 
@@ -14,7 +14,6 @@ To complement the newsletter, a dedicated section is included featuring the late
 ├── logs/                       
 ├── src/
 │   ├── scrapers/               
-│   │   ├── ansa.py
 │   │   ├── anthropic.py
 │   │   ├── bbc.py
 │   │   ├── corriere.py
