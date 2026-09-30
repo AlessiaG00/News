@@ -1,4 +1,3 @@
-
 import json
 import re
 from datetime import datetime, timezone
@@ -13,7 +12,7 @@ from src.config import (
     MESI_IT,
     OPENAI_ARTICLE_PATTERN,
     OPENAI_CANDIDATES_TO_CHECK,
-    OPENAI_CATEGORY_LABEL,
+    OPENAI_CATEGORY_LABELS,
     OPENAI_URL,
     REQUEST_TIMEOUT,
 )
@@ -50,6 +49,15 @@ def _parse_iso(value):
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
     return parsed
+
+
+def _trova_categoria(raw_text):
+    """Restituisce la prima etichetta di OPENAI_CATEGORY_LABELS presente nel
+    testo, oppure None se nessuna combacia."""
+    for etichetta in OPENAI_CATEGORY_LABELS:
+        if etichetta in raw_text:
+            return etichetta
+    return None
 
 
 def _parse_card_date(text):
@@ -111,7 +119,13 @@ def _extract_date(soup):
 # ------------------------------------------------------------
 
 def _lista_candidati():
-    """Legge la pagina elenco e restituisce le card taggate 'Azienda'."""
+    """
+    Legge la pagina elenco e restituisce (candidati, altre_categorie):
+    candidati = card che hanno una delle etichette in OPENAI_CATEGORY_LABELS
+    (es. "Ricerca", "Prodotto"); altre_categorie = testo grezzo dei link
+    articolo che non hanno nessuna di queste etichette, utile in diagnostica
+    per capire cosa si è trovato davvero.
+    """
 
     response = requests.get(OPENAI_URL, headers=HEADERS, timeout=REQUEST_TIMEOUT)
     response.raise_for_status()
@@ -119,6 +133,7 @@ def _lista_candidati():
     soup = BeautifulSoup(response.text, "html.parser")
 
     candidati = []
+    altre_categorie = []
     visti = set()
 
     for link in soup.find_all("a", href=True):
@@ -133,10 +148,17 @@ def _lista_candidati():
         # "Introducing the Australian Youth Safety BlueprintAzienda18 set 2026"
         raw_text = clean_text(link.get_text(" ", strip=True))
 
-        if not raw_text or OPENAI_CATEGORY_LABEL not in raw_text:
+        if not raw_text:
             continue
 
-        titolo, _, resto = raw_text.partition(OPENAI_CATEGORY_LABEL)
+        categoria = _trova_categoria(raw_text)
+
+        if categoria is None:
+            visti.add(full_url)
+            altre_categorie.append(raw_text)
+            continue
+
+        titolo, _, resto = raw_text.partition(categoria)
         titolo = titolo.strip()
 
         if len(titolo) < 5:
@@ -149,7 +171,7 @@ def _lista_candidati():
             "data_card": _parse_card_date(resto),
         })
 
-    return candidati
+    return candidati, altre_categorie
 
 
 # ------------------------------------------------------------
@@ -197,12 +219,23 @@ def _leggi_articolo(candidato):
 # ------------------------------------------------------------
 
 def get_openai_latest():
-    """Restituisce l'articolo più recente della sezione Azienda di OpenAI."""
+    """Restituisce l'articolo più recente tra le categorie OpenAI configurate."""
 
-    candidati = _lista_candidati()
+    candidati, altre_categorie = _lista_candidati()
 
     if not candidati:
-        logger.warning("OpenAI: nessuna card 'Azienda' trovata nella pagina")
+        if not altre_categorie:
+            logger.warning(
+                "OpenAI: nessun link corrisponde al pattern degli articoli "
+                "(probabile HTML diverso da quello del browser: anti-bot o "
+                "pagina cambiata)"
+            )
+        else:
+            dettaglio = "; ".join(altre_categorie[:10])
+            logger.warning(
+                f"OpenAI: nessuna card tra {OPENAI_CATEGORY_LABELS} trovata. "
+                f"Trovati {len(altre_categorie)} link articolo con altro testo: {dettaglio}"
+            )
         return None
 
     migliore = None
@@ -224,6 +257,7 @@ def get_openai_latest():
 
 
 if __name__ == "__main__":
+    # Esegui dalla root della repo:  python -m src.scrapers.openai_news
     articolo = get_openai_latest()
 
     if articolo:

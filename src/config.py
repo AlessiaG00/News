@@ -36,7 +36,7 @@ REQUEST_TIMEOUT = 20
 #### Open AI
 
 OPENAI_URL = "https://openai.com/it-IT/news/company-announcements/"
-OPENAI_CATEGORY_LABEL = "Azienda"
+OPENAI_CATEGORY_LABELS = ["Ricerca", "Prodotto"]
 OPENAI_CANDIDATES_TO_CHECK = 5
 OPENAI_ARTICLE_PATTERN = r"^https://openai\.com/index/[^/]+/?$"
 
