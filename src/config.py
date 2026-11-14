@@ -35,25 +35,51 @@ REQUEST_TIMEOUT = 20
 
 #### Open AI
 
-OPENAI_URL = "https://openai.com/it-IT/news/company-announcements/"
-OPENAI_CATEGORY_LABELS = ["Ricerca", "Prodotto"]
+OPENAI_URLS = [
+    "https://openai.com/it-IT/news/research/",
+    "https://openai.com/it-IT/news/product-releases/",
+]
+
+
+OPENAI_CATEGORY_LABELS = ["Ricerca", "Prodotto", "Ingegneria"]
+
 OPENAI_CANDIDATES_TO_CHECK = 5
+
 OPENAI_ARTICLE_PATTERN = r"^https://openai\.com/index/[^/]+/?$"
 
+# Mesi italiani (prime 3 lettere) per leggere la data sulla card, es. "18 set 2026"
 MESI_IT = {
     "gen": 1, "feb": 2, "mar": 3, "apr": 4, "mag": 5, "giu": 6,
     "lug": 7, "ago": 8, "set": 9, "ott": 10, "nov": 11, "dic": 12,
 }
 
 ### ANTHROPIC
-
 ANTHROPIC_URL = "https://www.anthropic.com/news"
-ANTHROPIC_SITE = "https://www.anthropic.com/"
-ANTHROPIC_CATEGORY_FILTER = None  
+
+ANTHROPIC_CATEGORY_FILTER = "Announcements"
+
+ANTHROPIC_KNOWN_CATEGORIES = [
+    "Announcements",
+    "Product",
+    "Partnerships",
+    "Policy",
+    "Safeguards",
+    "Security",
+    "Features",
+    "Science",
+    "Economics",
+    "Agents",
+    "Societal Impacts",
+    "Alignment",
+    "Research",
+    "Commitments",
+]
+
 ANTHROPIC_DATE_PATTERN = (
-    r"(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2}),\s+(\d{4})"
+    r"(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4}"
 )
-ANTHROPIC_GENERIC_DESC = "AI safety and research company"
+
+ANTHROPIC_ARTICLE_PATTERN = r"^https://www\.anthropic\.com/[^?#]+$"
 
 MESI_EN = {
     "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,

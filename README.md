@@ -34,4 +34,11 @@ To complement the newsletter, a dedicated section is included featuring the late
 ├── preview_mail.py                
 └── README.md
 
+
+```
+
+To verify that all scrapers are functioning correctly and that the email is being generated properly, a preview can be displayed by executing the following command:
+
+```text
+python preview_mail.py
 ```

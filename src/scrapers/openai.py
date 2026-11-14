@@ -13,7 +13,7 @@ from src.config import (
     OPENAI_ARTICLE_PATTERN,
     OPENAI_CANDIDATES_TO_CHECK,
     OPENAI_CATEGORY_LABELS,
-    OPENAI_URL,
+    OPENAI_URLS,
     REQUEST_TIMEOUT,
 )
 
@@ -118,34 +118,37 @@ def _extract_date(soup):
 # LISTA CARD
 # ------------------------------------------------------------
 
-def _lista_candidati():
+def _lista_candidati_pagina(url):
     """
-    Legge la pagina elenco e restituisce (candidati, altre_categorie):
-    candidati = card che hanno una delle etichette in OPENAI_CATEGORY_LABELS
-    (es. "Ricerca", "Prodotto"); altre_categorie = testo grezzo dei link
-    articolo che non hanno nessuna di queste etichette, utile in diagnostica
-    per capire cosa si è trovato davvero.
+    Legge UNA pagina elenco e restituisce (candidati, altre_categorie).
+
+    OpenAI mostra spesso la stessa card due volte (tab "Articoli" e tab
+    "Media" della pagina, entrambe presenti nell'HTML): una versione ha la
+    data, l'altra no (solo il tempo di lettura). Le due occorrenze dello
+    stesso URL vengono quindi unite, tenendo la data appena una delle due
+    la fornisce, invece di scartare una delle due copie a caso.
     """
 
-    response = requests.get(OPENAI_URL, headers=HEADERS, timeout=REQUEST_TIMEOUT)
+    response = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
     response.raise_for_status()
 
     soup = BeautifulSoup(response.text, "html.parser")
 
-    candidati = []
+    per_url = {}
+    ordine = []
     altre_categorie = []
-    visti = set()
+    altre_viste = set()
 
     for link in soup.find_all("a", href=True):
 
-        full_url = urljoin(OPENAI_URL, link["href"].strip())
+        full_url = urljoin(url, link["href"].strip())
         full_url = full_url.split("?")[0].split("#")[0]
 
-        if not ARTICLE_PATTERN.match(full_url) or full_url in visti:
+        if not ARTICLE_PATTERN.match(full_url):
             continue
 
-        # Testo del link = titolo + categoria + data attaccati, es:
-        # "Introducing the Australian Youth Safety BlueprintAzienda18 set 2026"
+        # Testo del link = titolo + categoria + data (o tempo di lettura)
+        # attaccati, es: "Introducing the ... BlueprintAzienda18 set 2026"
         raw_text = clean_text(link.get_text(" ", strip=True))
 
         if not raw_text:
@@ -154,8 +157,9 @@ def _lista_candidati():
         categoria = _trova_categoria(raw_text)
 
         if categoria is None:
-            visti.add(full_url)
-            altre_categorie.append(raw_text)
+            if full_url not in altre_viste:
+                altre_viste.add(full_url)
+                altre_categorie.append(raw_text)
             continue
 
         titolo, _, resto = raw_text.partition(categoria)
@@ -164,14 +168,57 @@ def _lista_candidati():
         if len(titolo) < 5:
             continue
 
-        visti.add(full_url)
-        candidati.append({
-            "titolo": titolo,
-            "link": full_url,
-            "data_card": _parse_card_date(resto),
-        })
+        data_card = _parse_card_date(resto)
 
-    return candidati, altre_categorie
+        if full_url not in per_url:
+            per_url[full_url] = {"titolo": titolo, "link": full_url, "data_card": data_card}
+            ordine.append(full_url)
+        else:
+            # Stesso URL già visto (l'altra "vista" della card): tieni la
+            # data appena una delle due occorrenze la fornisce
+            esistente = per_url[full_url]
+            if esistente["data_card"] is None and data_card is not None:
+                esistente["data_card"] = data_card
+
+    return [per_url[u] for u in ordine], altre_categorie
+
+
+def _lista_candidati():
+    """
+    Legge tutte le pagine in OPENAI_URLS e unisce i risultati (stesso URL =
+    stessa notizia, tenendo la data appena una delle pagine la fornisce).
+    Se una pagina non si apre si prosegue con le altre; se non si apre
+    nessuna, l'ultimo errore viene rilanciato (lo logga get_all_articles).
+    """
+
+    per_url = {}
+    ordine = []
+    altre_categorie = []
+    ultimo_errore = None
+    pagine_lette = 0
+
+    for url in OPENAI_URLS:
+        try:
+            candidati, altre = _lista_candidati_pagina(url)
+        except requests.RequestException as e:
+            logger.warning(f"OpenAI: impossibile leggere {url} - {e}")
+            ultimo_errore = e
+            continue
+
+        pagine_lette += 1
+        altre_categorie.extend(altre)
+
+        for c in candidati:
+            if c["link"] not in per_url:
+                per_url[c["link"]] = c
+                ordine.append(c["link"])
+            elif per_url[c["link"]]["data_card"] is None and c["data_card"] is not None:
+                per_url[c["link"]]["data_card"] = c["data_card"]
+
+    if pagine_lette == 0 and ultimo_errore is not None:
+        raise ultimo_errore
+
+    return [per_url[u] for u in ordine], altre_categorie
 
 
 # ------------------------------------------------------------
@@ -252,6 +299,13 @@ def get_openai_latest():
         # Il primo risultato valido fa da fallback se le date mancano
         if migliore is None or (data and (migliore_data is None or data > migliore_data)):
             migliore, migliore_data = articolo, data
+
+    if migliore is not None and migliore_data is None:
+        logger.warning(
+            "OpenAI: nessuna data leggibile per gli articoli candidati; "
+            "restituito il primo trovato nell'ordine della pagina, non "
+            "necessariamente il più recente"
+        )
 
     return migliore
 
