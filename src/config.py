@@ -41,13 +41,16 @@ OPENAI_URLS = [
 ]
 
 
-OPENAI_CATEGORY_LABELS = ["Ricerca", "Prodotto", "Ingegneria"]
+OPENAI_CATEGORY_LABELS = ["Ricerca", "Prodotto"]
+
+OPENAI_RSS_URL = "https://openai.com/news/rss.xml"
+
+OPENAI_RSS_CATEGORIES = ["Research", "Product", "Ricerca", "Prodotto"]
 
 OPENAI_CANDIDATES_TO_CHECK = 5
 
 OPENAI_ARTICLE_PATTERN = r"^https://openai\.com/index/[^/]+/?$"
 
-# Mesi italiani (prime 3 lettere) per leggere la data sulla card, es. "18 set 2026"
 MESI_IT = {
     "gen": 1, "feb": 2, "mar": 3, "apr": 4, "mag": 5, "giu": 6,
     "lug": 7, "ago": 8, "set": 9, "ott": 10, "nov": 11, "dic": 12,

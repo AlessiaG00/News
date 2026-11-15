@@ -1,6 +1,8 @@
 import json
 import re
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from urllib.parse import urljoin
 
 import requests
@@ -13,6 +15,8 @@ from src.config import (
     OPENAI_ARTICLE_PATTERN,
     OPENAI_CANDIDATES_TO_CHECK,
     OPENAI_CATEGORY_LABELS,
+    OPENAI_RSS_CATEGORIES,
+    OPENAI_RSS_URL,
     OPENAI_URLS,
     REQUEST_TIMEOUT,
 )
@@ -262,11 +266,11 @@ def _leggi_articolo(candidato):
 
 
 # ------------------------------------------------------------
-# FUNZIONE PUBBLICA
+# RIPIEGO: PAGINE HTML
 # ------------------------------------------------------------
 
-def get_openai_latest():
-    """Restituisce l'articolo più recente tra le categorie OpenAI configurate."""
+def _da_pagine():
+    """Ripiego: legge le pagine HTML delle categorie (vedi OPENAI_URLS)."""
 
     candidati, altre_categorie = _lista_candidati()
 
@@ -308,6 +312,127 @@ def get_openai_latest():
         )
 
     return migliore
+
+
+# ------------------------------------------------------------
+# FEED RSS
+# ------------------------------------------------------------
+
+def _formatta_data_rss(pub_date):
+    """'Wed, 16 Sep 2026 10:00:00 GMT' -> (datetime, '16/09/2026')."""
+    if not pub_date:
+        return None, ""
+    try:
+        data = parsedate_to_datetime(pub_date)
+    except (TypeError, ValueError):
+        return None, pub_date
+    if data.tzinfo is None:
+        data = data.replace(tzinfo=timezone.utc)
+    return data, data.strftime("%d/%m/%Y")
+
+
+def _pulisci_descrizione(html_text):
+    """Toglie i tag HTML dalla descrizione del feed e rimuove gli spazi che
+    la pulizia lascia prima della punteggiatura ('prodotto .' -> 'prodotto.')."""
+    testo = clean_text(html_text)
+    return re.sub(r"\s+([.,;:!?])", r"\1", testo)
+
+
+def _testo_elemento(item, tag):
+    el = item.find(tag)
+    return "".join(el.itertext()).strip() if el is not None else ""
+
+
+def _da_rss():
+    """
+    Legge il feed RSS e restituisce l'articolo più recente tra le categorie
+    in OPENAI_RSS_CATEGORIES, oppure None. Solleva requests.RequestException
+    se il feed non si scarica (lo gestisce il chiamante).
+    """
+
+    response = requests.get(OPENAI_RSS_URL, headers=HEADERS, timeout=REQUEST_TIMEOUT)
+    response.raise_for_status()
+
+    root = ET.fromstring(response.content)
+    items = root.findall("./channel/item")
+
+    if not items:
+        logger.warning("OpenAI: nessun articolo nel feed RSS")
+        return None
+
+    voci = []
+    for item in items:
+        titolo = clean_text(_testo_elemento(item, "title"))
+        link = _testo_elemento(item, "link")
+        if not titolo or not link:
+            continue
+        data, pubblicato = _formatta_data_rss(_testo_elemento(item, "pubDate"))
+        voci.append({
+            "titolo": titolo,
+            "sommario": _pulisci_descrizione(_testo_elemento(item, "description")),
+            "pubblicato": pubblicato,
+            "data": data,
+            "link": link,
+            "categorie": [
+                c.text.strip() for c in item.findall("category") if c.text
+            ],
+        })
+
+    if not voci:
+        logger.warning("OpenAI: feed RSS senza articoli leggibili")
+        return None
+
+    if any(v["categorie"] for v in voci):
+        volute = {c.casefold() for c in OPENAI_RSS_CATEGORIES}
+        scelte = [
+            v for v in voci
+            if any(c.casefold() in volute for c in v["categorie"])
+        ]
+        if not scelte:
+            trovate = sorted({c for v in voci for c in v["categorie"]})
+            logger.warning(
+                f"OpenAI: nel feed nessun articolo con categorie "
+                f"{OPENAI_RSS_CATEGORIES}. Categorie presenti: {trovate}"
+            )
+            return None
+    else:
+        logger.warning(
+            "OpenAI: il feed non indica le categorie, impossibile filtrare "
+            "per Ricerca/Prodotto: uso l'articolo più recente in assoluto"
+        )
+        scelte = voci
+
+    # Il più recente per data reale (a parità vale l'ordine del feed)
+    scelte.sort(
+        key=lambda v: v["data"] or datetime.min.replace(tzinfo=timezone.utc),
+        reverse=True,
+    )
+    migliore = scelte[0]
+
+    return {
+        "titolo": migliore["titolo"],
+        "sommario": migliore["sommario"],
+        "pubblicato": migliore["pubblicato"],
+        "link": migliore["link"],
+    }
+
+
+# ------------------------------------------------------------
+# FUNZIONE PUBBLICA
+# ------------------------------------------------------------
+
+def get_openai_latest():
+    """Restituisce l'articolo più recente tra le categorie OpenAI configurate:
+    prima dal feed RSS, poi (ripiego) dalle pagine HTML."""
+
+    try:
+        articolo = _da_rss()
+        if articolo:
+            return articolo
+    except (requests.RequestException, ET.ParseError) as e:
+        logger.warning(f"OpenAI: feed RSS non utilizzabile ({e}), provo le pagine HTML")
+
+    return _da_pagine()
 
 
 if __name__ == "__main__":
